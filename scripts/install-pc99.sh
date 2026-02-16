@@ -23,7 +23,18 @@ prompt_input() {
 }
 
 list_disks() {
-  lsblk -dno PATH,SIZE,MODEL,TYPE | awk '$4=="disk" { printf "  %s  %s  %s\n", $1, $2, $3 }'
+  lsblk -dn -o PATH,SIZE,TYPE,MODEL -P | awk '
+    /TYPE="disk"/ {
+      match($0, /PATH="([^"]*)"/, path)
+      match($0, /SIZE="([^"]*)"/, size)
+      match($0, /MODEL="([^"]*)"/, model)
+      modelValue = model[1]
+      if (modelValue == "") {
+        modelValue = "-"
+      }
+      printf "  %s  %s  %s\n", path[1], size[1], modelValue
+    }
+  '
 }
 
 canonicalize_disk() {
@@ -56,7 +67,9 @@ else
   echo "Detected BIOS boot"
 fi
 
-mapfile -t AVAILABLE_DISKS < <(lsblk -dno PATH,TYPE | awk '$2=="disk" { print $1 }')
+mapfile -t AVAILABLE_DISKS < <(
+  lsblk -dn -o PATH,TYPE -P | sed -n 's/^PATH="\([^"]*\)" TYPE="disk"$/\1/p'
+)
 
 if [[ ${#AVAILABLE_DISKS[@]} -eq 0 ]]; then
   echo "Error: no installable disks detected." >&2
