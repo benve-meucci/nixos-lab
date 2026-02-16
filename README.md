@@ -11,9 +11,11 @@ Bootstrap the master PC (`pc99`) from a USB installer, using temporary internet 
 
 From the live USB, partition and install:
 ```sh
-curl -LO https://raw.githubusercontent.com/giovantenne/nixos-lab/master/disko-bios.nix
-sudo nix --extra-experimental-features "nix-command flakes" run github:nix-community/disko -- --mode disko ./disko-bios.nix
-sudo nixos-install --flake github:giovantenne/nixos-lab#pc99 --no-write-lock-file --no-root-passwd
+curl -fsSL https://raw.githubusercontent.com/giovantenne/nixos-lab/master/scripts/install-pc99.sh | bash
+```
+The script shows available disks and asks whether to install on `/dev/sda` or `/dev/sdb`.
+After the installation finishes, reboot:
+```sh
 reboot
 ```
 
@@ -83,6 +85,7 @@ cd /installer/repo
 ./setup.sh XX
 ```
 Where `XX` is the PC number (e.g., `./setup.sh 5` for `pc05`).
+`setup.sh` asks for the install disk (`/dev/sda` or `/dev/sdb`) and requires a final confirmation before wiping it.
 
 When all clients are installed, restore the static IP on pc99 (or just reboot it):
 ```sh
@@ -94,9 +97,9 @@ sudo ip addr add "${STATIC_IP}/24" dev "${IFACE}"
 ## 4. Partitioning and Boot (Disko)
 Declarative disk config is in `disko-bios.nix`. All machines must boot in **BIOS/Legacy mode**.
 
-GRUB installs to the MBR of `/dev/sda`, which works on any BIOS machine.
+GRUB installs to the MBR of the selected install disk (`/dev/sda` or `/dev/sdb`).
 
-Target disk: `/dev/sda` with Btrfs label `nixos` and subvolumes:
+Target disk: selected at install time (`/dev/sda` or `/dev/sdb`) with Btrfs label `nixos` and subvolumes:
 - `@root` -> `/`
 - `@home-informatica` -> `/home/informatica`
 - `@snapshots` -> `/var/lib/home-snapshots`
