@@ -10,23 +10,29 @@ fi
 INSTALL_DISK="${1:-}"
 FLAKE_REF="${FLAKE_REF:-github:giovantenne/nixos-lab}"
 DISKO_URL="${DISKO_URL:-https://raw.githubusercontent.com/giovantenne/nixos-lab/master/disko-bios.nix}"
+AVAILABLE_DISKS=()
 
 list_disks() {
   lsblk -dno PATH,SIZE,MODEL,TYPE | awk '$4=="disk" { printf "  %s  %s  %s\n", $1, $2, $3 }'
 }
 
-normalize_disk() {
-  case "$1" in
-    sda|/dev/sda)
-      echo "/dev/sda"
-      ;;
-    sdb|/dev/sdb)
-      echo "/dev/sdb"
-      ;;
-    *)
-      echo ""
-      ;;
-  esac
+canonicalize_disk() {
+  if [[ "$1" == /dev/* ]]; then
+    echo "$1"
+  else
+    echo "/dev/$1"
+  fi
+}
+
+is_available_disk() {
+  local CANDIDATE="$1"
+  local DISK
+  for DISK in "${AVAILABLE_DISKS[@]}"; do
+    if [[ "$DISK" == "$CANDIDATE" ]]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 # Detect UEFI or BIOS
@@ -37,23 +43,33 @@ else
   echo "Detected BIOS boot"
 fi
 
-if [[ -z "$INSTALL_DISK" ]]; then
+mapfile -t AVAILABLE_DISKS < <(lsblk -dno PATH,TYPE | awk '$2=="disk" { print $1 }')
+
+if [[ ${#AVAILABLE_DISKS[@]} -eq 0 ]]; then
+  echo "Error: no installable disks detected." >&2
+  exit 1
+fi
+
+if [[ -n "$INSTALL_DISK" ]]; then
+  INSTALL_DISK=$(canonicalize_disk "$INSTALL_DISK")
+  if ! is_available_disk "$INSTALL_DISK"; then
+    echo "Error: disk '$INSTALL_DISK' is not available on this machine." >&2
+    echo "Available disks:"
+    list_disks
+    exit 1
+  fi
+elif [[ ${#AVAILABLE_DISKS[@]} -eq 1 ]]; then
+  INSTALL_DISK="${AVAILABLE_DISKS[0]}"
+  echo "Only one disk detected, selecting: $INSTALL_DISK"
+else
   echo "Available disks:"
   list_disks
-  read -r -p "Choose install disk [/dev/sda or /dev/sdb]: " CHOSEN_DISK
-  INSTALL_DISK=$(normalize_disk "$CHOSEN_DISK")
-else
-  INSTALL_DISK=$(normalize_disk "$INSTALL_DISK")
-fi
-
-if [[ -z "$INSTALL_DISK" ]]; then
-  echo "Error: disk must be /dev/sda or /dev/sdb." >&2
-  exit 1
-fi
-
-if [[ ! -b "$INSTALL_DISK" ]]; then
-  echo "Error: disk '$INSTALL_DISK' not found." >&2
-  exit 1
+  read -r -p "Choose install disk: " CHOSEN_DISK
+  INSTALL_DISK=$(canonicalize_disk "$CHOSEN_DISK")
+  if ! is_available_disk "$INSTALL_DISK"; then
+    echo "Error: disk '$INSTALL_DISK' is not available on this machine." >&2
+    exit 1
+  fi
 fi
 
 echo "Selected disk: $INSTALL_DISK"
@@ -69,7 +85,7 @@ trap 'rm -f "$TEMP_DISKO_INPUT" "$TEMP_DISKO_FILE"' EXIT
 
 echo "Downloading disko config..."
 curl -fsSL "$DISKO_URL" -o "$TEMP_DISKO_INPUT"
-sed -E "s#device = \"/dev/sd[a-z]\";#device = \"${INSTALL_DISK}\";#" "$TEMP_DISKO_INPUT" > "$TEMP_DISKO_FILE"
+sed -E "s#device = \"[^\"]+\";#device = \"${INSTALL_DISK}\";#" "$TEMP_DISKO_INPUT" > "$TEMP_DISKO_FILE"
 
 echo "Partitioning disk..."
 sudo nix --extra-experimental-features "nix-command flakes" run github:nix-community/disko -- --mode disko "$TEMP_DISKO_FILE"

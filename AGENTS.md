@@ -76,7 +76,7 @@ To validate changes, build the affected host configuration (`nix build`).
 - No custom NixOS options are declared (`options = { ... }`). This repo only sets existing nixpkgs options.
 - VirtualBox guest additions are enabled by default via `mkDefault` in `common.nix` (harmless on bare metal).
 - Hardware detection uses `modules/hardware.nix` with `not-detected.nix` for automatic driver loading. No per-host hardware-configuration.nix files are needed.
-- GRUB is configured for BIOS only. Install scripts support selecting `/dev/sda` or `/dev/sdb` and install GRUB to the MBR of the selected disk. UEFI boot is not supported; install scripts enforce BIOS at install time.
+- GRUB is configured for BIOS only. Install scripts auto-select the disk if only one is present, otherwise they ask the operator to choose from detected disks, then install GRUB to the selected disk MBR. UEFI boot is not supported; install scripts enforce BIOS at install time.
 - `labOverlay` in `flake.nix` provides custom packages (e.g. `pkgs.veyon` via `callPackage ./pkgs/veyon.nix {}`). Applied via `nixpkgs.overlays` in each host's module list and in `colmena.meta.nixpkgs`.
 - Veyon classroom management is configured in `modules/veyon.nix`: runs `veyon-service` on all PCs, deploys the public key, generates a `Veyon.conf` with all 30 client PCs pre-mapped, and opens port 11100. The private key is not managed by Nix (see Security).
 - The `veyon-master` group (declared in `modules/veyon.nix`) controls access to the Veyon private key. Users `admin` and `docente` are members (configured in `modules/users.nix`).

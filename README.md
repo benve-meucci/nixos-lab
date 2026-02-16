@@ -13,7 +13,7 @@ From the live USB, partition and install:
 ```sh
 curl -fsSL https://raw.githubusercontent.com/giovantenne/nixos-lab/master/scripts/install-pc99.sh | bash
 ```
-The script shows available disks and asks whether to install on `/dev/sda` or `/dev/sdb`.
+If one disk is detected, the script selects it automatically; if multiple disks are detected, it asks you to choose one.
 After the installation finishes, reboot:
 ```sh
 reboot
@@ -85,7 +85,7 @@ cd /installer/repo
 ./setup.sh XX
 ```
 Where `XX` is the PC number (e.g., `./setup.sh 5` for `pc05`).
-`setup.sh` asks for the install disk (`/dev/sda` or `/dev/sdb`) and requires a final confirmation before wiping it.
+`setup.sh` auto-selects the disk if only one is present; if multiple disks are present, it asks for a choice and requires a final confirmation before wiping it.
 
 When all clients are installed, restore the static IP on pc99 (or just reboot it):
 ```sh
@@ -97,9 +97,9 @@ sudo ip addr add "${STATIC_IP}/24" dev "${IFACE}"
 ## 4. Partitioning and Boot (Disko)
 Declarative disk config is in `disko-bios.nix`. All machines must boot in **BIOS/Legacy mode**.
 
-GRUB installs to the MBR of the selected install disk (`/dev/sda` or `/dev/sdb`).
+GRUB installs to the MBR of the selected install disk.
 
-Target disk: selected at install time (`/dev/sda` or `/dev/sdb`) with Btrfs label `nixos` and subvolumes:
+Target disk: selected at install time from detected disks with Btrfs label `nixos` and subvolumes:
 - `@root` -> `/`
 - `@home-informatica` -> `/home/informatica`
 - `@snapshots` -> `/var/lib/home-snapshots`
