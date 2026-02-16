@@ -30,10 +30,13 @@ list_disks() {
 }
 
 canonicalize_disk() {
-  if [[ "$1" == /dev/* ]]; then
-    echo "$1"
+  local RAW_DISK="$1"
+  if [[ -z "$RAW_DISK" ]]; then
+    echo ""
+  elif [[ "$RAW_DISK" == /dev/* ]]; then
+    echo "$RAW_DISK"
   else
-    echo "/dev/$1"
+    echo "/dev/$RAW_DISK"
   fi
 }
 
@@ -71,6 +74,10 @@ else
   list_disks
   read -r -p "Choose install disk: " CHOSEN_DISK
   INSTALL_DISK=$(canonicalize_disk "$CHOSEN_DISK")
+  if [[ -z "$INSTALL_DISK" ]]; then
+    echo "Error: no disk selected." >&2
+    exit 1
+  fi
   if ! is_available_disk "$INSTALL_DISK"; then
     echo "Error: disk '$INSTALL_DISK' is not available on this machine." >&2
     exit 1
