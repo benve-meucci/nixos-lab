@@ -27,38 +27,38 @@
   #   nix build .#nixosConfigurations.netboot.config.system.build.netbootIpxeScript --out-link result-ipxe
   #
   # Find it with: ip -4 addr show dev <ifaceName>
-  masterDhcpIp = "MASTER_DHCP_IP";
+  masterDhcpIp = "172.16.131.145";
   # Static IP network base (each PC gets networkBase.N)
-  networkBase = "10.0.0";
+  networkBase = "10.22.10";
   # Number of student PCs
-  pcCount = 20;
+  pcCount = 25;
   # Controller host number (gets networkBase.N as its static IP)
   masterHostNumber = 99;
   # Shared network interface name on lab PCs
-  ifaceName = "enp0s3";
+  ifaceName = "enp9s0f0";
 
   # ── User accounts ─────────────────────────────────────────────
   # Teacher account (gets Veyon Master access + no home reset)
-  teacherUser = "teacher";
+  teacherUser = "docente";
   # Student account (autologin on client PCs, home reset at boot)
-  studentUser = "student";
+  studentUser = "informatica";
 
   # ── Passwords (SHA-512 hashed) ────────────────────────────────
   # Generate with: mkpasswd -m sha-512
   # Default password for all accounts is "nixos" -- change after first boot.
-  teacherPassword = "$6$t.4PBRDwSMnGbuzA$fLuu1n700q.Mvj0ivauGLPQJcfT6XnFMkDh6T0GMWH/hzlSNuzxfh0bxh2iQR027y7PSdzuIvWoO3NgRbM/gV0";
-  studentPassword = "$6$t.4PBRDwSMnGbuzA$fLuu1n700q.Mvj0ivauGLPQJcfT6XnFMkDh6T0GMWH/hzlSNuzxfh0bxh2iQR027y7PSdzuIvWoO3NgRbM/gV0";
-  adminPassword = "$6$t.4PBRDwSMnGbuzA$fLuu1n700q.Mvj0ivauGLPQJcfT6XnFMkDh6T0GMWH/hzlSNuzxfh0bxh2iQR027y7PSdzuIvWoO3NgRbM/gV0";
+  teacherPassword = "$6$2mGRpSKHPodwsJaX$D6SVRoOK60Y1XRNTJl3tU5KoiPtWbtqboMLOVbeVout3rnTq6SZNC6RJpjN5royMSpcr/Ck4PY3zvgLj4I2Fl1";
+  studentPassword = "$6$uv885OnHgyTHYdfU$6bw3wrbLIXMfMRJgqfhgEcq/JuObU/TCm0E7Ba2Tpah7lonydXSBHeHMKmmkBJoxR8qeX6AGAwKo6SZrok6Rm0";
+  adminPassword = "$6$wq1BVhUku9cyis0R$lnGCGcK1yQFCjGsLT/tMyamTS5P2.Upmvm97koHocIrTNEnGZuHng3AlslbHMWITSJIB/DjU9MPDBKw19JqXa0";
 
   # ── School / organization ──────────────────────────────────────
   # Chromium homepage URL
-  homepageUrl = "https://github.com/giovantenne/nixos-lab";
+  homepageUrl = "https://www.itismeucci.edu.it/";
   # Git identity for student home template
   studentGitName = "student";
-  studentGitEmail = "student@example.com";
+  studentGitEmail = "student@itismeucci.com";
   # Git identity for admin home template
   adminGitName = "admin";
-  adminGitEmail = "admin@example.com";
+  adminGitEmail = "admin@itismeucci.com";
 
   # ── Locale / timezone ──────────────────────────────────────────
   timeZone = "Europe/Rome";
