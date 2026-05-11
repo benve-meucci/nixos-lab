@@ -158,8 +158,13 @@ in
   # Disable GNOME initial setup and welcome
   services.gnome.gnome-initial-setup.enable = false;
 
-  # Disable system sleep/idle actions
+  # Do not allow systemd-logind to suspend lab machines.
+  # GNOME idle sleep is already disabled above, but explicit logind policy
+  # prevents suspend requests from ACPI sleep keys or other session paths.
   services.logind.settings.Login = {
+    IdleAction = "ignore";
+    HandleSuspendKey = "ignore";
+    HandleHibernateKey = "ignore";
     HandleLidSwitch = "ignore";
     HandleLidSwitchExternalPower = "ignore";
     HandleLidSwitchDocked = "ignore";
@@ -430,6 +435,7 @@ in
     gcc
     tig
     tmux
+    tree-sitter
     imagemagick
     ghostscript
     tectonic
@@ -445,11 +451,15 @@ in
     lua-language-server
     jdk21
     maven
-    nodejs_20
+    nodejs_24
     opencode
     php83
     ripgrep
     try
+    libreoffice-qt
+    hunspell
+    hunspellDicts.it_IT
+    hunspellDicts.en_US
     xdg-user-dirs
     (makeDesktopItem {
       name = "io.veyon";

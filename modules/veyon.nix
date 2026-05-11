@@ -12,9 +12,10 @@
 # - Public key deployed to all PCs for key-file authentication
 # - Private key must be placed manually where needed (not managed by Nix)
 # - Classroom/PC layout is configured via Veyon Configurator or veyon-cli
-{ pkgs, lib, labSettings, ... }:
+{ pkgs, lib, hostName, labSettings, ... }:
 
 let
+  isMaster = hostName == labSettings.masterHostName;
   veyonLocationName = "Lab";
 
   # Veyon authentication key base directories.
@@ -50,6 +51,7 @@ let
   locationUid = uuidFromString (builtins.replaceStrings [" "] ["-"] (lib.toLower veyonLocationName));
 
   hostNumbers = builtins.genList (n: n + 1) labSettings.pcCount;
+  checkedNetworkObjectUids = map (n: uuidFromString "pc${padNumber n}") hostNumbers;
 
   networkObjects = {
     a = [
@@ -123,10 +125,78 @@ in
     mode = "0644";
   };
 
-  # Veyon service: runs per user session.
+  # Seed the controller with the full list of generated PCs so stale
+  # per-user Veyon state can pick up newly added machines.
+  environment.etc."lab/veyon-master-checked-objects.json" = lib.mkIf isMaster {
+    text = builtins.toJSON checkedNetworkObjectUids;
+    mode = "0644";
+  };
+
+  # Merge newly added lab PCs into the per-user Veyon Master selection state.
+  # Only hosts missing from both the checked list and the saved layout get
+  # added back, so explicitly hidden computers stay hidden.
+  environment.etc."lab/veyon-master-user-config.sh" = lib.mkIf isMaster {
+    text = ''
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      case "''${USER:-}" in
+        admin|${labSettings.teacherUser}) ;;
+        *) exit 0 ;;
+      esac
+
+      CONFIG_DIR="''${HOME}/.veyon/Config"
+      CONFIG_FILE="''${CONFIG_DIR}/VeyonMaster.json"
+      EXPECTED_FILE="/etc/lab/veyon-master-checked-objects.json"
+
+      mkdir -p "$CONFIG_DIR"
+
+      if [ ! -f "$CONFIG_FILE" ]; then
+        printf '%s\n' '{}' > "$CONFIG_FILE"
+      fi
+
+      TMP_FILE="$(mktemp)"
+      trap 'rm -f "$TMP_FILE"' EXIT
+
+      ${pkgs.jq}/bin/jq --slurpfile expected "$EXPECTED_FILE" '
+        def checked: (.UI.CheckedNetworkObjects.JsonStoreArray // []);
+        def positioned: [(.UI.ComputerPositions.JsonStoreArray // [])[]?.uid];
+
+        .UI |= (. // {}) |
+        .UI.CheckedNetworkObjects.JsonStoreArray =
+          (
+            checked +
+            [
+              ($expected[0] // [])[]
+              | select((checked | index(.)) == null and (positioned | index(.)) == null)
+            ]
+          )
+      ' "$CONFIG_FILE" > "$TMP_FILE"
+
+      mv "$TMP_FILE" "$CONFIG_FILE"
+    '';
+    mode = "0755";
+  };
+
+  systemd.user.services.veyon-master-user-config = lib.mkIf isMaster {
+    description = "Lab Veyon Master checked computer sync";
+    wantedBy = [ "graphical-session.target" ];
+    after = [ "graphical-session.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.bash}/bin/bash /etc/lab/veyon-master-user-config.sh";
+    };
+    path = [ pkgs.coreutils pkgs.jq ];
+  };
+
+  # The controller needs Veyon Master, but it does not need to expose its own
+  # Wayland session through grd or veyon-service.
+  services.gnome.gnome-remote-desktop.enable = lib.mkIf isMaster (lib.mkForce false);
+
+  # Veyon service: runs per user session on client PCs.
   # On Wayland, veyon-service connects to grd's VNC (port 5900) rather
   # than capturing the screen directly.
-  systemd.user.services.veyon-server = {
+  systemd.user.services.veyon-server = lib.mkIf (!isMaster) {
     description = "Veyon Service";
     wantedBy = [ "graphical-session.target" ];
     after = [ "graphical-session.target" "gnome-remote-desktop.service" ];
@@ -140,7 +210,7 @@ in
 
   # gnome-remote-desktop VNC configuration via dconf.
   # Enable VNC backend, set password authentication, mirror the primary screen.
-  services.desktopManager.gnome.extraGSettingsOverrides = ''
+  services.desktopManager.gnome.extraGSettingsOverrides = lib.mkIf (!isMaster) ''
     [org.gnome.desktop.remote-desktop.vnc]
     enable=true
     view-only=true
@@ -155,12 +225,12 @@ in
   '';
 
   # Ensure the remote-desktop schemas are visible to gsettings.
-  services.desktopManager.gnome.extraGSettingsOverridePackages = [ pkgs.gnome-remote-desktop ];
+  services.desktopManager.gnome.extraGSettingsOverridePackages = lib.mkIf (!isMaster) [ pkgs.gnome-remote-desktop ];
 
   # gnome-remote-desktop user service: set the VNC password via environment
   # variable (GNOME Keyring is disabled in common.nix), and ensure it's enabled
   # at session start.
-  systemd.user.services.gnome-remote-desktop = {
+  systemd.user.services.gnome-remote-desktop = lib.mkIf (!isMaster) {
     wantedBy = [ "gnome-session.target" ];
     serviceConfig.Environment = [
       "GNOME_REMOTE_DESKTOP_TEST_VNC_PASSWORD=${vncPassword}"
@@ -173,5 +243,5 @@ in
   # Open the Veyon and VNC ports.
   # The firewall is disabled in common.nix but we declare the ports
   # explicitly for documentation / defense-in-depth.
-  networking.firewall.allowedTCPPorts = [ 11100 5900 ];
+  networking.firewall.allowedTCPPorts = lib.mkIf (!isMaster) [ 11100 5900 ];
 }

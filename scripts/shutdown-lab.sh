@@ -42,7 +42,7 @@ if [[ "${LOCAL_HOSTNAME}" != "${LAB_CONTROLLER_NAME}" ]]; then
 fi
 
 if [[ "${AUTO_CONFIRM}" != "true" ]]; then
-  read -r -p "Spegnere tutti i client del gruppo @lab e poi ${LAB_CONTROLLER_NAME}? [y/N] " CONFIRMATION
+  read -r -p "Spegnere tutti i client del gruppo @lab? [y/N] " CONFIRMATION
   if [[ "${CONFIRMATION}" != "y" && "${CONFIRMATION}" != "Y" ]]; then
     echo "Operazione annullata."
     exit 0
@@ -55,5 +55,4 @@ echo "Invio shutdown ai client del gruppo @lab..."
   "${COLMENA_CMD[@]}" exec --impure --on @lab systemctl poweroff
 )
 
-echo "Client arrestati. Spengo ${LAB_CONTROLLER_NAME}..."
-systemctl poweroff
+echo "Client arrestati. ${LAB_CONTROLLER_NAME} resta acceso."
