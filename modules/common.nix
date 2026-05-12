@@ -433,6 +433,9 @@ in
     chromium
     vscode
     gcc
+    sshuttle
+    ruby
+    kamal
     tig
     tmux
     tree-sitter
